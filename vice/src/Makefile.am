@@ -302,7 +302,9 @@ base_sources = \
 	vicefeatures.c \
 	vsync.c \
 	zfile.c \
-	zipcode.c
+	zipcode.c \
+	sdl_wrapper.c \
+	SDLMain.m
 
 mouse_sources = \
 	mouse.c

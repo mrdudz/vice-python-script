@@ -29,14 +29,15 @@
 
 #if defined(__PIC__) && !defined(OpenBSD5_7) && !defined(__CYGWIN32__) && !defined(__CYGWIN__) && !defined(WIN32_COMPILE)
 
-#define cpuid(func, ax, bx, cx, dx)                                    \
-    __asm__ __volatile__ ("pushl %%ebx\n\t"                            \
-                          ".byte 15; .byte 162\n\t"                    \
-                          "movl %%ebx, %1\n\t"                         \
-                          "popl %%ebx\n\t"                             \
-                          : "=a" (ax), "=r" (bx), "=c" (cx), "=d" (dx) \
-                          : "a" (func)                                 \
-                          : "cc")
+#define cpuid(func, ax, bx, cx, dx) \
+__asm__ __volatile__("pushq %%rbx     \n\t" \
+                     "cpuid            \n\t" \
+                     "movl %%ebx, %1   \n\t" /* save what cpuid just put in %ebx */ \
+                     "popq %%rbx \n\t" /* restore the old %ebx */ \
+                     : "=a"(ax), "=r"(bx), "=c"(cx), "=d"(dx) \
+                     : "a"(func) \
+                     : "cc");
+
 #else
 #define cpuid(func, ax, bx, cx, dx) \
     __asm__ __volatile__ (".byte 15;.byte 162":  \

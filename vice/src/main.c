@@ -87,6 +87,7 @@ int console_mode = 0;
 int video_disabled_mode = 0;
 static int init_done;
 
+void start_scripting(void);
 /* ------------------------------------------------------------------------- */
 
 /* This is the main program entry point.  Call this from `main()'.  */
@@ -271,9 +272,7 @@ int main_program(int argc, char **argv)
 
     /* Let's go...  */
     log_message(LOG_DEFAULT, "Main CPU: starting at ($FFFC).");
-    maincpu_mainloop();
-
-    log_error(LOG_DEFAULT, "perkele!");
+    start_scripting();
 
     return 0;
 }
