@@ -74,7 +74,11 @@ int start_scripting(int argc, char **argv)
 {
 	printf("In main\n");
 	void *libhandle;
+#ifdef MACOSX_SUPPORT
 	libhandle = dlopen("/Library/Frameworks/SDL.framework/SDL", RTLD_LAZY);
+#else
+	libhandle = dlopen("/usr/lib/x86_64-linux-gnu/libSDL.so", RTLD_LAZY);
+#endif
 	printf("Loaded SDL %p\n", libhandle);
 
 	MAP(SDL_OpenAudio);
@@ -425,7 +429,7 @@ int SDLCALL SDL_EnableUNICODE(int enable)
 
 Uint8 SDLCALL SDL_EventState(Uint8 type, int state)
 {
-	return SDL_EventState(type, state);
+	return CALL(SDL_EventState, type, state);
 }
 
 

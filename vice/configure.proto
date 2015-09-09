@@ -1994,6 +1994,10 @@ AC_SUBST(TFE_LIBS)
 dnl Check and setup SDL compilation.
 if test x"$with_sdlsound" = "xyes" -o x"$enable_sdlui" = "xyes" -o x"$enable_sdlui2" = "xyes"; then
 
+    CFLAGS="$CFLAGS `python-config --includes`"
+    CXXFLAGS="$CXXFLAGS `python-config --includes`"
+    LIBS="$LIBS `python-config --libs`"
+
     if test x"$enable_dingoo" = "xyes"; then
         SOUND_DRIVERS="$SOUND_DRIVERS soundsdl.o"
         AC_DEFINE(USE_SDL_AUDIO,,[Enable sdl sound support.])
@@ -2009,12 +2013,9 @@ if test x"$with_sdlsound" = "xyes" -o x"$enable_sdlui" = "xyes" -o x"$enable_sdl
           AC_MSG_ERROR([SDL2 framework not implemented (yet) for the Mac OS X port]) 
         fi
 
-        PY_FLAGS="-I/System/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7 -I/System/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7"
-        PY_LIBS="-lpython2.7"
-
-        LIBS="$LIBS $PY_LIBS -lSDLmain -framework SDL -framework Cocoa -framework OpenGL -framework CoreVideo"
-        CFLAGS="$CFLAGS $PY_FLAGS -I/Library/Frameworks/SDL.framework/Headers -I/System/Library/Frameworks/OpenGL.framework/Headers"
-        CXXFLAGS="$CXXFLAGS $PY_FLAGS -I/Library/Frameworks/SDL.framework/Headers -I/System/Library/Frameworks/OpenGL.framework/Headers"
+        LIBS="$LIBS -lSDLmain -framework SDL -framework Cocoa -framework OpenGL -framework CoreVideo"
+        CFLAGS="$CFLAGS -I/Library/Frameworks/SDL.framework/Headers -I/System/Library/Frameworks/OpenGL.framework/Headers"
+        CXXFLAGS="$CXXFLAGS -I/Library/Frameworks/SDL.framework/Headers -I/System/Library/Frameworks/OpenGL.framework/Headers"
 
         SOUND_DRIVERS="$SOUND_DRIVERS soundsdl.o"
         AC_DEFINE(USE_SDL_AUDIO,,[Enable SDL sound support.])
