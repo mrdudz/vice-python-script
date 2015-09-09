@@ -462,9 +462,10 @@ void maincpu_start(void)
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
 }
 
-void maincpu_mainloop(void)
+void maincpu_mainloop(unsigned int count)
 {
 
+    while (count--) {
 #define CLK maincpu_clk
 #define RMW_FLAG maincpu_rmw_flag
 #define LAST_OPCODE_INFO last_opcode_info
@@ -520,6 +521,8 @@ void maincpu_mainloop(void)
             log_error(LOG_DEFAULT, "cycle limit reached.");
             exit(EXIT_FAILURE);
         }
+    }
+    EXPORT_REGISTERS();
 }
 
 /* ------------------------------------------------------------------------- */

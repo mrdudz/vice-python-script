@@ -4,13 +4,11 @@
 #include <SDL/SDL.h>
 #include <dlfcn.h>
 
-#include <Python.h>
+extern void maincpu_mainloop(unsigned int count);
+extern int main_program(int argc, char **argv);
+extern int run_python(int argc, char **argv);
 
-typedef unsigned short WORD;
-typedef unsigned char BYTE;
-
-void mem_store(WORD addr, BYTE value);
-BYTE mem_read(WORD addr);
+int headLess = 0;
 
 
 int (*pSDL_OpenAudio)(SDL_AudioSpec *, SDL_AudioSpec *);
@@ -70,19 +68,14 @@ Uint8 (*pSDL_JoystickGetButton)(SDL_Joystick *joystick, int button);
 void (*pSDL_JoystickClose)(SDL_Joystick *joystick);
 int (*pSDL_PushEvent)(SDL_Event *event);
 
-void CustomApplicationMain (int argc, char **argv);
-int XX_main (int argc, char **argv);
-
 #define MAP(x) p ## x = dlsym(libhandle, #x) ; if(!p ## x) fprintf(stderr, "Could not map %s\n", #x);
 
-#undef main
-int main(int argc, char *argv[])
+int start_scripting(int argc, char **argv)
 {
 	printf("In main\n");
 	void *libhandle;
 	libhandle = dlopen("/Library/Frameworks/SDL.framework/SDL", RTLD_LAZY);
-
-	printf("Loaded SDL %p'n", libhandle);
+	printf("Loaded SDL %p\n", libhandle);
 
 	MAP(SDL_OpenAudio);
 	MAP(SDL_CloseAudio);
@@ -141,15 +134,34 @@ int main(int argc, char *argv[])
 	MAP(SDL_JoystickClose);
 	MAP(SDL_PushEvent);
 
+	const char *scriptName = NULL;
 
-	Py_SetProgramName(argv[0]);
-    Py_Initialize();
-    PySys_SetArgv(argc, argv);
+	int i=1, j=1;
+	for(;j<argc;) {
+		if(strcmp(argv[j], "-script") == 0) {
+			j++;
+			scriptName = argv[j++];
+		} else
+			argv[i++] = argv[j++];
+	}
+	argc = i;
 
-	//startPython("test");
+	for(i=0; i<argc; i++)
+		printf("%s\n", argv[i]);
 
-	XX_main(argc, argv);
-	//return SDL_main(argc, argv);
+	printf("MAIN\n");
+    main_program(argc, argv);
+
+    if(scriptName) {
+    	printf("Running script\n");
+    	argv[0] = scriptName;
+    	run_python(argc, argv);
+    }
+
+    printf("LOOPING\n");
+	while(1)
+		maincpu_mainloop(1);
+
 	return 0;
 }
 
@@ -175,6 +187,8 @@ void SDLCALL SDL_PauseAudio(int pause_on)
 
 int SDLCALL SDL_GL_SetAttribute(SDL_GLattr attr, int value)
 {
+	if(headLess)
+		return 0;
 	return CALL(SDL_GL_SetAttribute, attr, value);
 }
 
@@ -182,6 +196,8 @@ uint32_t frameCounter = 0;
 
 void SDLCALL SDL_GL_SwapBuffers(void)
 {
+	if(headLess)
+		return;
 	CALL(SDL_GL_SwapBuffers);
 }
 
@@ -207,6 +223,8 @@ void SDLCALL SDL_ClearError(void)
 
 int SDLCALL SDL_Init(Uint32 flags)
 {
+	if(headLess)
+		flags = 0;
 	return CALL(SDL_Init, flags);
 }
 
@@ -215,28 +233,52 @@ int SDLCALL SDL_InitSubSystem(Uint32 flags)
 	return CALL(SDL_InitSubSystem, flags);
 }
 
+SDL_Surface *createFakeSurface(int w, int h, int bpp) {
+	SDL_Surface *s = malloc(sizeof(SDL_Surface));
+	memset(s, 0, sizeof(SDL_Surface));
+	s->format = malloc(sizeof(SDL_PixelFormat));
+	s->format->BitsPerPixel = bpp;
+	s->format->BytesPerPixel = bpp/8;
+	s->w = w;
+	s->h = h;
+	s->flags = SDL_SWSURFACE;
+	s->pitch = w * bpp / 8;
+	s->pixels = malloc(w*h*(bpp/8));
+	return s;
+}
+
 SDL_Surface * SDLCALL SDL_CreateRGBSurface(Uint32 flags, int width, int height, int depth, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask, Uint32 Amask)
 {
+	if(headLess)
+		return createFakeSurface(width, height, depth);
 	return CALL(SDL_CreateRGBSurface, flags, width, height, depth, Rmask, Gmask, Bmask, Amask);
 }
 
 SDL_Surface * SDLCALL SDL_CreateRGBSurfaceFrom(void *pixels, int width, int height, int depth, int pitch, Uint32 Rmask, Uint32 Gmask, Uint32 Bmask, Uint32 Amask)
 {
+	if(headLess)
+		return createFakeSurface(width, height, depth);
 	return CALL(SDL_CreateRGBSurfaceFrom, pixels, width, height, depth, pitch, Rmask, Gmask, Bmask, Amask);
 }
 
 void SDLCALL SDL_FreeSurface(SDL_Surface *surface)
 {
+	if(headLess)
+		free(surface);
 	CALL(SDL_FreeSurface, surface);
 }
 
 int SDLCALL SDL_LockSurface(SDL_Surface *surface)
 {
+	if(headLess)
+		return 0;
 	return CALL(SDL_LockSurface, surface);
 }
 
 void SDLCALL SDL_UnlockSurface(SDL_Surface *surface)
 {
+	if(headLess)
+		return;
 	CALL(SDL_UnlockSurface, surface);
 }
 
@@ -247,6 +289,7 @@ SDL_GrabMode SDLCALL SDL_WM_GrabInput(SDL_GrabMode mode)
 
 Uint32 SDLCALL SDL_MapRGB(const SDL_PixelFormat * const format, const Uint8 r, const Uint8 g, const Uint8 b)
 {
+	if(headLess) return 0;
 	return CALL(SDL_MapRGB, format, r, g, b);
 }
 
@@ -279,27 +322,33 @@ void SDLCALL SDL_Quit(void)
 
 int SDLCALL SDL_SetColors(SDL_Surface *surface, SDL_Color *colors, int firstcolor, int ncolors)
 {
+	if(headLess) return 0;
 	return CALL(SDL_SetColors, surface, colors, firstcolor, ncolors);
 }
 
 SDL_Surface * SDLCALL SDL_SetVideoMode(int width, int height, int bpp, Uint32 flags)
 {
+	if(headLess)
+		return createFakeSurface(width, height, bpp);
 	SDL_Surface *s = CALL(SDL_SetVideoMode, width, height,  bpp, flags);
 	return s;
 }
 
 void SDLCALL SDL_UpdateRects(SDL_Surface *screen, int numrects, SDL_Rect *rects)
 {
+	if(headLess) return;
 	CALL(SDL_UpdateRects, screen, numrects, rects);
 }
 
 void SDLCALL SDL_UpdateRect(SDL_Surface *screen, Sint32 x, Sint32 y, Uint32 w, Uint32 h)
 {
+	if(headLess) return;
 	CALL(SDL_UpdateRect, screen, x, y, w, h);
 }
 
 int SDLCALL SDL_Flip(SDL_Surface *screen)
 {
+	if(headLess) return 0;
 	return CALL(SDL_Flip, screen);
 }
 
@@ -462,140 +511,4 @@ void SDLCALL SDL_JoystickClose(SDL_Joystick *joystick)
 {
 }
 
-#undef HAVE_NANOSLEEP
-#include "attach.h"
 
-PyObject *vice_attach_disk(PyObject *self, PyObject *args)
-{
-	char *fileName;
-	PyArg_ParseTuple(args, "s", &fileName);
-	if (!(file_system_attach_disk(8, fileName) < 0)) {
-		return Py_BuildValue("i", -1);
-	}
-	return Py_BuildValue("i", 8);
-}
-
-
-PyObject *vice_print(PyObject *self, PyObject *args)
-{
-	char *text;
-	PyArg_ParseTuple(args, "s", &text);
-	//PyString_AsString(
-
-	printf("\n ## VICE: %s\n", text);
-	return Py_BuildValue("i", 0);
-}
-
-void maincpu_mainloop(void);
-void maincpu_start(void);
-
-
-PyObject *vice_run_cycles(PyObject *self, PyObject *args)
-{
-	int cycles = 0;
-	PyArg_ParseTuple(args, "i", &cycles);
-	while(cycles--) {
-	    maincpu_mainloop();
-	}
-	return Py_BuildValue("i", 0);
-}
-
-PyObject *vice_run_frames(PyObject *self, PyObject *args)
-{
-	int frames = 0;
-	PyArg_ParseTuple(args, "i", &frames);
-	uint32_t toFrame = frameCounter + frames;
-	while(toFrame > frameCounter) {
-	    maincpu_mainloop();
-
-	}
-	return Py_BuildValue("i", 0);
-}
-
-PyObject *vice_break(PyObject *self, PyObject *args)
-{
-	
-}
-
-
-static PyMethodDef ViceMethods[] = {
-    {"output", vice_print, METH_VARARGS, "Prints text"},
-    {"attach_disk", vice_attach_disk, METH_VARARGS, "Attach disk"},
-    {"run_cycles", vice_run_cycles, METH_VARARGS, "Run cycles"},
-    {"run_frames", vice_run_frames, METH_VARARGS, "Run cycles"},
-    {"break_on", vice_break, METH_VARARGS, "Run cycles"},
-    {NULL, NULL, 0, NULL}
-};
-
-int startPython(const char *pythonScript);
-
-unsigned int maincpu_get_a(void);
-
-void scripting_check_traps(int pc)
-{
-	//printf("%x\n", pc);
-	if((pc & 0xffd0) == 0xffd0) {
-		int a = maincpu_get_a();
-		//printf("OUT: %x, %02x\n", pc, a);
-		putchar(a);
-	}
-
-}
-
-void start_scripting(void)
-{
-	//maincpu_start();
-	startPython("test.py");
-	while(true)
-		maincpu_mainloop();
-}
-
-int startPython(const char *pythonScript)
-{
-    PyObject *pName, *pModule;//, *pFunc, *pValue;
-
-    Py_InitModule("vice", ViceMethods);
-
-    pName = PyString_FromString(pythonScript);
-    /* Error checking of pName left out */
-
-    pModule = PyImport_Import(pName);
-    Py_DECREF(pName);
-
-    if (pModule != NULL) {
-#if 0    	
-        pFunc = PyObject_GetAttrString(pModule, "start");
-        /* pFunc is a new reference */
-
-        if (pFunc && PyCallable_Check(pFunc)) 
-        {
-            pValue = PyObject_CallObject(pFunc, NULL);
-            if (pValue != NULL) {
-                printf("Result of call: %ld\n", PyInt_AsLong(pValue));
-                Py_DECREF(pValue);
-            }
-            else {
-                Py_DECREF(pFunc);
-                Py_DECREF(pModule);
-                PyErr_Print();
-                fprintf(stderr,"Call failed\n");
-                return 1;
-            }
-        }
-        else {
-            if (PyErr_Occurred())
-                PyErr_Print();
-            fprintf(stderr, "Cannot find function\n");
-        }
-        Py_XDECREF(pFunc);
-        Py_DECREF(pModule);
-#endif
-    }
-    else {
-        PyErr_Print();
-        fprintf(stderr, "Failed to load\n");
-        return 1;
-    }
-    Py_Finalize();
-    return 0;
-}

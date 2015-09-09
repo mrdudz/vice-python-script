@@ -272,7 +272,6 @@ int main_program(int argc, char **argv)
 
     /* Let's go...  */
     log_message(LOG_DEFAULT, "Main CPU: starting at ($FFFC).");
-    start_scripting();
 
     return 0;
 }

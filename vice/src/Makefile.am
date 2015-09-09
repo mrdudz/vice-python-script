@@ -304,7 +304,9 @@ base_sources = \
 	zfile.c \
 	zipcode.c \
 	sdl_wrapper.c \
-	SDLMain.m
+	python_interface.c
+
+#	SDLMain.m
 
 mouse_sources = \
 	mouse.c

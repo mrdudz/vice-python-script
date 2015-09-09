@@ -34,6 +34,9 @@
 
 #include "vice_sdl.h"
 
+int start_scripting(int argc, char **argv);
+
+
 #ifdef __XBOX__
 void XBoxStartup(void)
 {
@@ -58,7 +61,7 @@ int main(int argc, char **argv)
 
     return main_program(argc_local, argv_local);
 #else
-    return main_program(argc, argv);
+    return start_scripting(argc, argv);
 #endif
 }
 #endif
