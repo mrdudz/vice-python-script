@@ -25,13 +25,16 @@ PyObject *vice_attach_disk(PyObject *self, PyObject *args)
 	return Py_BuildValue("i", 8);
 }
 
+FILE *output;
+
 PyObject *vice_print(PyObject *self, PyObject *args)
 {
 	char *text;
 	PyArg_ParseTuple(args, "s", &text);
 	//PyString_AsString(
 
-	printf("\n ## VICE: %s\n", text);
+	//printf("\n ## VICE: %s\n", text);
+    fprintf(output, text);
 	return Py_BuildValue("i", 0);
 }
 
@@ -110,8 +113,11 @@ static PyMethodDef ViceMethods[] = {
 };
 
 
-void run_python(int argc, char **argv)
+void run_python(int argc, char **argv, FILE *out, FILE *in)
 {
+
+    output = out;
+
     Py_SetProgramName(argv[0]);
     Py_Initialize();
     PySys_SetArgv(argc, argv);

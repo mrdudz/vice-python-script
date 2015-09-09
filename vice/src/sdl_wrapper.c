@@ -6,7 +6,7 @@
 
 extern void maincpu_mainloop(unsigned int count);
 extern int main_program(int argc, char **argv);
-extern int run_python(int argc, char **argv);
+extern int run_python(int argc, char **argv, FILE *out, FILE *in);
 
 int headLess = 0;
 
@@ -72,14 +72,17 @@ int (*pSDL_PushEvent)(SDL_Event *event);
 
 int start_scripting(int argc, char **argv)
 {
-	printf("In main\n");
+	FILE *realout = stdout;
+	stdout = fopen("vice.log", "wb");
+	fprintf(realout, "In main\n");
+
 	void *libhandle;
 #ifdef MACOSX_SUPPORT
 	libhandle = dlopen("/Library/Frameworks/SDL.framework/SDL", RTLD_LAZY);
 #else
 	libhandle = dlopen("/usr/lib/x86_64-linux-gnu/libSDL.so", RTLD_LAZY);
 #endif
-	printf("Loaded SDL %p\n", libhandle);
+	//printf("Loaded SDL %p\n", libhandle);
 
 	MAP(SDL_OpenAudio);
 	MAP(SDL_CloseAudio);
@@ -153,16 +156,16 @@ int start_scripting(int argc, char **argv)
 	for(i=0; i<argc; i++)
 		printf("%s\n", argv[i]);
 
-	printf("MAIN\n");
+	//printf("MAIN\n");
     main_program(argc, argv);
 
     if(scriptName) {
-    	printf("Running script\n");
+    	//printf("Running script\n");
     	argv[0] = scriptName;
-    	run_python(argc, argv);
+    	run_python(argc, argv, realout, stdin);
     }
 
-    printf("LOOPING\n");
+    //printf("LOOPING\n");
 	while(1)
 		maincpu_mainloop(1);
 
@@ -175,17 +178,24 @@ int start_scripting(int argc, char **argv)
 
 int SDLCALL SDL_OpenAudio(SDL_AudioSpec *desired, SDL_AudioSpec *obtained)
 {
+	if(headLess) {
+		if(obtained)
+			memcpy(obtained, desired, sizeof(SDL_AudioSpec));
+		return 0;
+	}
 	return CALL(SDL_OpenAudio, desired, obtained);
 }
 
 
 void SDLCALL SDL_CloseAudio(void)
 {
+	if(headLess) return;
 	CALL(SDL_CloseAudio);
 }
 
 void SDLCALL SDL_PauseAudio(int pause_on)
 {
+	if(headLess) return;
 	CALL(SDL_PauseAudio, pause_on);
 }
 
@@ -227,6 +237,7 @@ void SDLCALL SDL_ClearError(void)
 
 int SDLCALL SDL_Init(Uint32 flags)
 {
+	printf("INIT %x\n", flags);
 	if(headLess)
 		flags = 0;
 	return CALL(SDL_Init, flags);
@@ -234,6 +245,7 @@ int SDLCALL SDL_Init(Uint32 flags)
 
 int SDLCALL SDL_InitSubSystem(Uint32 flags)
 {
+	printf("INIT SUB %x\n", flags);
 	return CALL(SDL_InitSubSystem, flags);
 }
 
