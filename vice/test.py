@@ -1,21 +1,32 @@
 
 import sys
 import vice
+import select
+
+
+def putString(s) :
+	for c in s :
+		vice.put_key(ord(c))
+
+def doVblank():
+	if sys.stdin in select.select([sys.stdin], [], [], 0)[0] :
+		line = sys.stdin.readline()
+  		if line :
+  			putString(line)
 
 def charOutput(a,x,y) :
-	if a == 0xd :
-		a = 10;
-
-	#sys.stdout.write(chr(a))
-	vice.write(chr(a))
-	#a = 'X'  #vice.get_a()
-	#print("%d %d %d\n", (a,x,y))
-	#vice.rts()
-	#print(chr(a), end='')
-
-vice.output('PIRATES')
-vice.attach_disk("EdgeOfDisgrace_0.d64")
+	if a == 10 :
+		return
+	elif a == 13 :
+		a = 10
+	sys.stdout.write(chr(a))
 
 vice.break_on(0xffd2, charOutput);
+vice.on_frame(doVblank)
 
-vice.run_frames(3000)
+vice.run_frames(150)
+vice.write_memory(0x400, 'ABCDEF')
+putString("10 print \"hello\"\n20 goto 10\n")
+
+vice.run_frames(30000)
+

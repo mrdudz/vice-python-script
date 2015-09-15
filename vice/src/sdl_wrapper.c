@@ -8,6 +8,8 @@ extern void maincpu_mainloop(unsigned int count);
 extern int main_program(int argc, char **argv);
 extern int run_python(int argc, char **argv, FILE *out, FILE *in);
 
+extern int onframe_python(int fc);
+
 int headLess = 0;
 
 
@@ -69,15 +71,19 @@ void (*pSDL_JoystickClose)(SDL_Joystick *joystick);
 int (*pSDL_PushEvent)(SDL_Event *event);
 
 #define MAP(x) p ## x = dlsym(libhandle, #x) ; if(!p ## x) fprintf(stderr, "Could not map %s\n", #x);
+void log_enable(int on);
 
 int start_scripting(int argc, char **argv)
 {
 	FILE *realout = stdout;
-	stdout = fopen("vice.log", "wb");
-	fprintf(realout, "In main\n");
+	log_enable(0);
+	//stdout = fopen("vice.log", "wb");
+	//fprintf(realout, "In main\n");
+	headLess = 0;
+
 
 	void *libhandle;
-#ifdef MACOSX_SUPPORT
+#if __APPLE__
 	libhandle = dlopen("/Library/Frameworks/SDL.framework/SDL", RTLD_LAZY);
 #else
 	libhandle = dlopen("/usr/lib/x86_64-linux-gnu/libSDL.so", RTLD_LAZY);
@@ -159,6 +165,9 @@ int start_scripting(int argc, char **argv)
 	//printf("MAIN\n");
     main_program(argc, argv);
 
+    if(!scriptName)
+    	scriptName = "startup.py";
+
     if(scriptName) {
     	//printf("Running script\n");
     	argv[0] = scriptName;
@@ -206,7 +215,8 @@ int SDLCALL SDL_GL_SetAttribute(SDL_GLattr attr, int value)
 	return CALL(SDL_GL_SetAttribute, attr, value);
 }
 
-uint32_t frameCounter = 0;
+int frameCounter = 0;
+int frameDelay = 20;
 
 void SDLCALL SDL_GL_SwapBuffers(void)
 {
@@ -400,16 +410,27 @@ SDL_RWops * SDLCALL SDL_RWFromFile(const char *file, const char *mode)
 	return CALL(SDL_RWFromFile, file, mode);
 }
 
+uint32_t ticks = 0;
+uint32_t tick_offset = 0;
+
 Uint32 SDLCALL SDL_GetTicks(void)
 {
-	return CALL(SDL_GetTicks);
+	if(frameDelay == 0) {
+		return ticks;
+	}
+	ticks = CALL(SDL_GetTicks) + tick_offset;
+	return ticks;
 }
 
 void SDLCALL SDL_Delay(Uint32 ms)
 {
 	frameCounter++;
-	//printf("Delay %d\n", ms);
-	if(frameCounter > 50)
+	onframe_python(frameCounter);
+	if(frameDelay == 0) {
+		ticks += ms;
+		tick_offset = ticks - CALL(SDL_GetTicks);
+	}
+	else
 		CALL(SDL_Delay, ms);
 	//mem_store(0x400, 'A');
 }

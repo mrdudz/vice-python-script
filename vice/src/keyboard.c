@@ -317,8 +317,10 @@ static void keyboard_key_shift(void)
     }
 }
 
-static int keyboard_key_pressed_matrix(int row, int column, int shift)
+int keyboard_key_pressed_matrix(int row, int column, int shift)
 {
+    //printf("PRESS ROW %d COL %d SHIFT %x\n", row, column, shift);
+
     if (row >= 0) {
         key_latch_row = row;
         key_latch_column = column;
@@ -416,6 +418,8 @@ void keyboard_key_pressed(signed long key)
         return;
     }
 
+    //printf("KEY %d\n", key);
+
     /* Restore */
     if (((key == key_ctrl_restore1) || (key == key_ctrl_restore2))
         && machine_has_restore_key()) {
@@ -483,8 +487,10 @@ void keyboard_key_pressed(signed long key)
     }
 }
 
-static int keyboard_key_released_matrix(int row, int column, int shift)
+int keyboard_key_released_matrix(int row, int column, int shift)
 {
+    ////printf("RELEASED ROW %d COL %d SHIFT %x\n", row, column, shift);
+
     int skip_release = 0;
 
     if (row >= 0) {
@@ -598,6 +604,19 @@ void keyboard_key_released(signed long key)
         }
     }
 }
+
+void keyboard_rowcol_release(int row, int col) {
+    if(keyboard_key_released_matrix(row, col, 8))
+        keyboard_set_latch_keyarr(row, col, 0); 
+    alarm_set(keyboard_alarm, maincpu_clk + KEYBOARD_RAND());                                  
+}
+
+void keyboard_rowcol_press(int row, int col) {
+    if(keyboard_key_pressed_matrix(row, col, 8))
+        keyboard_set_latch_keyarr(key_latch_row, key_latch_column, 1);
+    alarm_set(keyboard_alarm, maincpu_clk + KEYBOARD_RAND());
+}
+
 
 static void keyboard_key_clear_internal(void)
 {

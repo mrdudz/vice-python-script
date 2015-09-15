@@ -304,7 +304,7 @@ base_sources = \
 	zfile.c \
 	zipcode.c \
 	sdl_wrapper.c \
-	python_interface.c
+	python_interface.cpp
 
 #	SDLMain.m
 

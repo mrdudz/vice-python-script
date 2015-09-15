@@ -42,7 +42,7 @@
 #include "translate.h"
 #include "util.h"
 
-/* #define DBGSYSFILE */
+#define DBGSYSFILE
 
 #ifdef DBGSYSFILE
 #define DBG(x)  printf x

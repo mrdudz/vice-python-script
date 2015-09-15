@@ -1995,7 +1995,7 @@ dnl Check and setup SDL compilation.
 if test x"$with_sdlsound" = "xyes" -o x"$enable_sdlui" = "xyes" -o x"$enable_sdlui2" = "xyes"; then
 
     CFLAGS="$CFLAGS `python-config --includes`"
-    CXXFLAGS="$CXXFLAGS `python-config --includes`"
+    CXXFLAGS="$CXXFLAGS -std=c++11 `python-config --includes`"
     LIBS="$LIBS `python-config --libs`"
 
     if test x"$enable_dingoo" = "xyes"; then
