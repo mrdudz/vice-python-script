@@ -403,6 +403,18 @@ unsigned int maincpu_get_sp(void) {
     return WDC65816_REGS_GET_SP(&maincpu_regs);
 }
 
+void maincpu_set_sp(int sp) {
+    WDC65816_REGS_SET_SP(&maincpu_regs, sp);
+}
+
+unsigned int maincpu_get_sr(void) {
+    return WDC65816_REGS_GET_STATUS(&maincpu_regs);
+}
+
+void maincpu_set_sr(int sr) {
+    WDC65816_REGS_SET_STATUS(&maincpu_regs, sr);
+}
+
 /* ------------------------------------------------------------------------- */
 
 static char snap_module_name[] = "MAIN6565802CPU";

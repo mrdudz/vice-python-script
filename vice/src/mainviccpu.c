@@ -507,6 +507,18 @@ unsigned int maincpu_get_sp(void) {
     return MOS6510_REGS_GET_SP(&maincpu_regs);
 }
 
+void maincpu_set_sp(int sp) {
+    MOS6510_REGS_SET_SP(&maincpu_regs, sp);
+}
+
+unsigned int maincpu_get_sr(void) {
+    return MOS6510_REGS_GET_STATUS(&maincpu_regs);
+}
+
+void maincpu_set_sr(int sr) {
+    MOS6510_REGS_SET_STATUS(&maincpu_regs, sr);
+}
+
 /* ------------------------------------------------------------------------- */
 
 static char snap_module_name[] = "MAINCPU";

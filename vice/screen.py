@@ -20,15 +20,26 @@ def putString(s) :
 def doVblank():
 	global start
 	try :
-		uc = ord(vice.get_memory(0xd018, 1)[0])
+		uc = vice.get_mem(0xd018)
 
 		x = stdscr.getch()
 		if x != curses.ERR :
-			if x == curses.KEY_F1 :
-				start = (start + 0x400) % 0x10000
-			else :
-				vice.put_key(x)
-		mem = vice.get_memory(start, 25*40)
+			if x >= curses.KEY_F1 and x <= curses.KEY_F8 :
+				x = x - curses.KEY_F1
+			elif x == curses.KEY_RIGHT :
+				x = 0x10
+			elif x == curses.KEY_LEFT :
+				x = 0x11
+			elif x == curses.KEY_DOWN :
+				x = 0x12
+			elif x == curses.KEY_UP :
+				x = 0x13
+			elif x == curses.KEY_HOME :
+				x = 0xc
+			elif x == curses.KEY_BACKSPACE :
+				x = 8
+			vice.put_key(x)
+		mem = vice.read_memory(start, 25*40)
 
 		for i in range(0,len(mem)) :
 			x = i % 40

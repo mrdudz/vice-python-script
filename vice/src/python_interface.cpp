@@ -32,30 +32,41 @@ struct KeyEvent {
 	bool pressed;
 };
 
+// 0 2 false // rt
+// 0 2 true // lt
+// 0 7 false // dn
+// 0 7 true // up
+// 6 3 false // home
+// 7 7 false // stop
+
+// 0 4 // f1 - f7
+// 0 5
+// 0 6
+// 0 3
 
 KeyEvent a2m[] = {
 
-	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
+	{ 0, 4, false },
+	{ 0, 4, true },
+	{ 0, 5, false },
+	{ 0, 5, true },
+	{ 0, 6, false },
+	{ 0, 6, true },
+	{ 0, 3, false },
+	{ 0, 3, true },
 	{ 0, 0, false },
 	{ -1, -1, false },
 	{ 0, 1, false },
 	{ -1, -1, false },
+	{ 6, 3, false },
 	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
+	{ 7, 7, true },
+	{ 7, 7, false },
 
-	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
-	{ -1, -1, false },
+	{ 0, 2, false },
+	{ 0, 2, true },
+	{ 0, 7, false },
+	{ 0, 7, true },
 	{ -1, -1, false },
 	{ -1, -1, false },
 	{ -1, -1, false },
@@ -197,6 +208,22 @@ static deque<KeyEvent> matrix;
 
 extern int frameCounter;
 extern int frameDelay;
+
+extern "C" {
+	PyObject **store_watch_on;
+}
+
+extern "C" void do_store_watch(int a, int v)
+{
+	auto *obj = store_watch_on[a];
+	if(obj) {
+		PyObject* arglist = Py_BuildValue("(ii)", a, v);
+		PyObject_CallObject(obj, arglist);
+		Py_DECREF(arglist);
+	}
+	//printf("%02x => %04x\n", v, a);
+}
+
 
 void scripting_check_traps(int pc)
 {
@@ -371,6 +398,12 @@ static int write_memory(int start, vector<uint8_t> data)
 }
 ADDFUNC(write_memory, "");
 
+static int get_mem(int start) { return mem_read(start); }
+ADDFUNC(get_mem, "");
+
+static void put_mem(int start, int v) { mem_store(start, v); }
+ADDFUNC(put_mem, "");
+
 static vector<unsigned int> get_regs()
 {
 	vector<unsigned int> regs { 
@@ -378,110 +411,65 @@ static vector<unsigned int> get_regs()
 		maincpu_get_x(),
 		maincpu_get_y(),
 		maincpu_get_pc(),
-		maincpu_get_sp()
+		maincpu_get_sp(),
+		maincpu_get_sr()
 	};
 
 	return regs;
 }
-ADDFUNC(get_regs, "")
+ADDFUNC(get_regs, "");
 
-/*
+static int get_a() { return maincpu_get_a(); }
+ADDFUNC(get_a, "");
 
+static int get_x() { return maincpu_get_x(); }
+ADDFUNC(get_x, "");
 
-#define PYFN(name) PyObject* vice_ ## name(PyObject *self, PyObject *args)
+static int get_y() { return maincpu_get_y(); }
+ADDFUNC(get_y, "");
 
-PyObject *vice_run_cycles(PyObject *self, PyObject *args)
+static int get_pc() { return maincpu_get_pc(); }
+ADDFUNC(get_pc, "");
+
+static int get_sp() { return maincpu_get_sp(); }
+ADDFUNC(get_sp, "");
+
+static int get_sr() { return maincpu_get_sr(); }
+ADDFUNC(get_sr, "");
+
+static void set_a(int v) { maincpu_set_a(v); }
+ADDFUNC(set_a, "");
+
+static void set_x(int v) { maincpu_set_x(v); }
+ADDFUNC(set_x, "");
+
+static void set_y(int v) { maincpu_set_y(v); }
+ADDFUNC(set_y, "");
+
+static void set_pc(int v) { maincpu_set_pc(v); }
+ADDFUNC(set_pc, "");
+
+static void set_sp(int v) { maincpu_set_sp(v); }
+ADDFUNC(set_sp, "");
+
+static void set_sr(int v) { maincpu_set_sr(v); }
+ADDFUNC(set_sr, "");
+
+static void on_write(int adr, int len, PyFunc fn)
 {
-	int cycles = 0;
-	PyArg_ParseTuple(args, "i", &cycles);
-	python_mainloop(cycles);
-	return Py_BuildValue("i", 0);
-}
-
-extern int frameCounter;
-PyObject *vice_run_frames(PyObject *self, PyObject *args)
-{
-	int frames = 0;
-	PyArg_ParseTuple(args, "i", &frames);
-	uint32_t toFrame = frameCounter + frames;
-	while(toFrame > frameCounter) {
-		python_mainloop(500);
-
+	for(int i=0; i<len; i++) {
+		store_watch_on[adr+i] = fn.func;
 	}
-	return Py_BuildValue("i", 0);
 }
-
-PyObject *vice_break(PyObject *self, PyObject *args)
-{
-	int break_pc;
-	PyArg_ParseTuple(args, "iO", &break_pc, &obj);
-	if (!PyCallable_Check(obj)) {
-			PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-			return NULL;
-		}
-	Py_XINCREF(obj);
-	//printf("Break on %04x", break_pc);
-	breaks.insert(break_pc);
-	return Py_BuildValue("i", 0);
-}
-
-PYFN(putchar)
-{
-   int key;
-   PyArg_ParseTuple(args, "i", &key);
-   keyboard_key_pressed(key);
-	return Py_BuildValue("i", 0);
- }
-
-PYFN(on_frame)
-{
-	PyArg_ParseTuple(args, "O", &frame_fn);
-	if (!PyCallable_Check(frame_fn)) {
-			PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-			return NULL;
-		}
-	Py_XINCREF(frame_fn);
-	return Py_BuildValue("i", 0);
-}
-
-PYFN(mem_read)
-{
-	int addr;
-	PyArg_ParseTuple(args, "i", &addr);
-	return Py_BuildValue("i", mem_read(addr));
-}
-
-PYFN(mem_write)
-{
-	int addr, val;
-	PyArg_ParseTuple(args, "ii", &addr, &val);
-	int oldv = mem_read(addr);
-	mem_store(addr, val);
-	return Py_BuildValue("i", oldv);
-}
-
-#define PMDEF(name, doc) { #name, vice_ ## name, METH_VARARGS, doc },
-
-PyObject *vice_print(PyObject *self, PyObject *args) { return callf(args, print); }
-
-
-PyObject *vice_attach_disk(PyObject *self, PyObject *args) { return callf(args, attach_disk); }
-
-static PyMethodDef ViceMethods[] = {
-	PMDEF(mem_read, "")
-	PMDEF(mem_write, "")
-	PMDEF(on_frame, "")
-	{"output", vice_print, METH_VARARGS, "Prints text"},
-	{"attach_disk", vice_attach_disk, METH_VARARGS, "Attach disk"},
-	{"run_cycles", vice_run_cycles, METH_VARARGS, "Run cycles"},
-	{"run_frames", vice_run_frames, METH_VARARGS, "Run cycles"},
-	{"break_on", vice_break, METH_VARARGS, "Run cycles"},
-	{NULL, NULL, 0, NULL}
-};
-*/
+ADDFUNC	(on_write, "");
 
 extern "C" void run_python(int argc, char **argv, FILE *out, FILE *in)
 {
+
+	store_watch_on = new PyObject* [65536];
+	memset(&store_watch_on[0], 0, 65536*sizeof(void*));
+
+	//store_watch_on[0xd020] = 1;
 
 	output_fp = out;
 
@@ -512,51 +500,10 @@ extern "C" void run_python(int argc, char **argv, FILE *out, FILE *in)
 
 	free((void*)pythonScript);
 
-	if (pModule != NULL) {
-#if 0    	
-		pFunc = PyObject_GetAttrString(pModule, "start");
-		/* pFunc is a new reference */
-
-		if (pFunc && PyCallable_Check(pFunc)) 
-		{
-			pValue = PyObject_CallObject(pFunc, NULL);
-			if (pValue != NULL) {
-				printf("Result of call: %ld\n", PyInt_AsLong(pValue));
-				Py_DECREF(pValue);
-			}
-			else {
-				Py_DECREF(pFunc);
-				Py_DECREF(pModule);
-				PyErr_Print();
-				fprintf(stderr,"Call failed\n");
-				return 1;
-			}
-		}
-		else {
-			if (PyErr_Occurred())
-				PyErr_Print();
-			fprintf(stderr, "Cannot find function\n");
-		}
-		Py_XDECREF(pFunc);
-		Py_DECREF(pModule);
-#endif
-	}
-	else {
+	if (pModule == NULL) {
 		PyErr_Print();
 		fprintf(stderr, "Failed to load\n");
 		//return 1;
 	}
 	
-
-	// Py_Finalize();
-
-
-		//maincpu_start();
- //   startPython("test.py");
-	//while(1)
-	  //  maincpu_mainloop(1);
-
-	//return 0;
-
-
 }

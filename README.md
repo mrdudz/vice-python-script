@@ -31,6 +31,15 @@ attach_disk(disk_image, device)
 put_key(ascii)
 put_raw_key(col, row, pressed)
 get_regs()
+get_a()
+get_x()
+get_y()
+get_pc()
+get_sp()
+get_sr()
+get_mem(start)
+put_mem(start, byte)
+write_memory(start, bytes)
 ```
 
 ### Suggested
@@ -40,15 +49,6 @@ reset()
 get_screen()
 render_text(x,y,text)
 diff_memory(start, size)
-write_memory(start, bytes)
-get_mem(start)
-put_mem(start, byte)
-get_a()
-get_x()
-get_y()
-get_pc()
-get_sp()
-get_sr()
 ```
 
 

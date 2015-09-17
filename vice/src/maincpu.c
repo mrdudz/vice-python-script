@@ -108,8 +108,11 @@
 #endif /* FEATURE_CPUMEMHISTORY */
 
 #ifndef STORE
+extern void **store_watch_on;
+extern void do_store_watch(int, int);
 #define STORE(addr, value) \
-    (*_mem_write_tab_ptr[(addr) >> 8])((WORD)(addr), (BYTE)(value))
+    { if(store_watch_on[addr]) do_store_watch(addr, value); \
+    (*_mem_write_tab_ptr[(addr) >> 8])((WORD)(addr), (BYTE)(value)); }
 #endif
 
 #ifndef LOAD
@@ -462,9 +465,11 @@ void maincpu_start(void)
     machine_trigger_reset(MACHINE_RESET_MODE_SOFT);
 }
 
+void import_regs();
+
 void maincpu_mainloop(unsigned int count)
 {
-
+    import_regs();
     while (count--) {
 #define CLK maincpu_clk
 #define RMW_FLAG maincpu_rmw_flag
@@ -523,6 +528,10 @@ void maincpu_mainloop(unsigned int count)
         }
     }
     EXPORT_REGISTERS();
+}
+
+void import_regs() {
+    IMPORT_REGISTERS();
 }
 
 /* ------------------------------------------------------------------------- */
@@ -630,6 +639,31 @@ unsigned int maincpu_get_sp(void) {
     return MOS6510_REGS_GET_SP(&maincpu_regs);
 #endif
 }
+
+void maincpu_set_sp(int sp) {
+#ifdef C64DTV
+    MOS6510DTV_REGS_SET_SP(&maincpu_regs, sp);
+#else
+    MOS6510_REGS_SET_SP(&maincpu_regs, sp);
+#endif
+}
+
+unsigned int maincpu_get_sr(void) {
+#ifdef C64DTV
+    return MOS6510DTV_REGS_GET_STATUS(&maincpu_regs);
+#else
+    return MOS6510_REGS_GET_STATUS(&maincpu_regs);
+#endif
+}
+
+void maincpu_set_sr(int sr) {
+#ifdef C64DTV
+    MOS6510DTV_REGS_SET_STATUS(&maincpu_regs, sr);
+#else
+    MOS6510_REGS_SET_STATUS(&maincpu_regs, sr);
+#endif
+}
+
 
 /* ------------------------------------------------------------------------- */
 

@@ -100,10 +100,13 @@ extern void maincpu_set_sign(int);
 extern void maincpu_set_zero(int);
 extern void maincpu_set_carry(int);
 extern void maincpu_set_interrupt(int);
+extern void maincpu_set_sr(int);
+extern void maincpu_set_sp(int);
 extern unsigned int maincpu_get_pc(void);
 extern unsigned int maincpu_get_a(void);
 extern unsigned int maincpu_get_x(void);
 extern unsigned int maincpu_get_y(void);
 extern unsigned int maincpu_get_sp(void);
+extern unsigned int maincpu_get_sr(void);
 
 #endif

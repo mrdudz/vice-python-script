@@ -86,6 +86,11 @@ namespace tp {
 		return Py_BuildValue("i", i);
 	}
 
+	PyObject *makeRet(void) {
+		return Py_BuildValue("i", 0);
+	}
+
+
 	PyObject *makeRet(const std::string &s) {
 		return Py_BuildValue("s", s.c_str());
 	}
@@ -141,6 +146,17 @@ template <class FX, class R, class... ARGS> struct TFCaller<FX, R, std::tuple<AR
 	}
 };
 
+template <class FX, class... ARGS> struct TFCaller<FX, void, std::tuple<ARGS...>> {
+
+	template <size_t ... A> static PyObject* call2(PyObject *pt, FX f, std::index_sequence<A...>) {
+		f(tp::getArg<ARGS>(pt, A)...);
+		return tp::makeRet();
+	}
+
+	static PyObject* call(PyObject *args, FX f) {
+		return call2(args, f, std::make_index_sequence<sizeof...(ARGS)>());
+	}
+};
 
 template <class FX> PyObject* call(PyObject *args, FX f) {
 

@@ -256,10 +256,15 @@ inline static BYTE mem_read_check_ba(unsigned int addr)
 }
 
 #ifndef STORE
+extern void **store_watch_on;
+extern void do_store_watch(int, int);
 #define STORE(addr, value) \
-    (*_mem_write_tab_ptr[(addr) >> 8])((WORD)(addr), (BYTE)(value))
+    { if(store_watch_on[addr]) do_store_watch(addr, value); \
+    (*_mem_write_tab_ptr[(addr) >> 8])((WORD)(addr), (BYTE)(value)); }
 #endif
 
+//extern unsigned int *load_watch_on;
+//if(load_watch_on[addr]) do_load_watch(addr);
 #ifndef LOAD
 #define LOAD(addr) \
     mem_read_check_ba(addr)
@@ -646,6 +651,18 @@ unsigned int maincpu_get_y(void) {
 
 unsigned int maincpu_get_sp(void) {
     return MOS6510_REGS_GET_SP(&maincpu_regs);
+}
+
+void maincpu_set_sp(int sp) {
+    MOS6510_REGS_SET_SP(&maincpu_regs, sp);
+}
+
+unsigned int maincpu_get_sr(void) {
+    return MOS6510_REGS_GET_STATUS(&maincpu_regs);
+}
+
+void maincpu_set_sr(int sr) {
+    MOS6510_REGS_SET_STATUS(&maincpu_regs, sr);
 }
 
 /* ------------------------------------------------------------------------- */
