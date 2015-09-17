@@ -17,10 +17,25 @@ def putString(s) :
 	for c in s :
 		vice.put_key(ord(c))
 
+viccolors = [ curses.COLOR_BLACK, curses.COLOR_WHITE, curses.COLOR_RED, curses.COLOR_CYAN,
+	  curses.COLOR_MAGENTA, curses.COLOR_GREEN, curses.COLOR_BLUE, curses.COLOR_YELLOW,
+	  curses.COLOR_YELLOW, curses.COLOR_RED, curses.COLOR_RED, curses.COLOR_WHITE,
+	  curses.COLOR_WHITE, curses.COLOR_GREEN, curses.COLOR_BLUE, curses.COLOR_WHITE ]
+
+old_bg = -1
+
+def setupColors(bg) :
+	global old_bg
+	old_bg = bg
+	for i in range(0,16) :
+		curses.init_pair(i+1, viccolors[i], bg);
+
 def doVblank():
-	global start
 	try :
 		uc = vice.get_mem(0xd018)
+		bg = vice.get_mem(0xd021) & 0xf
+		if bg != old_bg :
+			setupColors(viccolors[bg])
 
 		x = stdscr.getch()
 		if x != curses.ERR :
@@ -36,16 +51,23 @@ def doVblank():
 				x = 0x13
 			elif x == curses.KEY_HOME :
 				x = 0xc
+			elif x == curses.KEY_F9 :
+				x = 0xf
 			elif x == curses.KEY_BACKSPACE :
 				x = 8
 			vice.put_key(x)
-		mem = vice.read_memory(start, 25*40)
+		mem = vice.read_memory(0x400, 25*40)
+		colors = vice.read_memory(0xd800, 25*40)
 
 		for i in range(0,len(mem)) :
 			x = i % 40
 			y = i / 40
 			code = ord(mem[i])
-			a = 0
+			c = ord(colors[i]) & 0xf
+			a = curses.color_pair(c + 1)
+			if c in (1,10,13,14,7,2) :
+				a |= curses.A_BOLD
+
 			if code >= 0x80 :
 				code %= 0x80
 				a |= curses.A_REVERSE
@@ -63,6 +85,7 @@ def runThis() :
 	global stdscr, mainwin
 	stdscr = curses.initscr()
 	curses.start_color()
+	setupColors(curses.COLOR_BLUE)
 	curses.noecho()
 	#stdscr.cbreak()
 	curses.curs_set(0)

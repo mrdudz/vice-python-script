@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <signal.h>
 #include <Python.h>
 
 //typedef unsigned short WORD;
@@ -466,6 +467,9 @@ ADDFUNC	(on_write, "");
 extern "C" void run_python(int argc, char **argv, FILE *out, FILE *in)
 {
 
+	for(int i=0; i<argc; i++)
+		printf("%d:%s\n", i, argv[i]);
+
 	store_watch_on = new PyObject* [65536];
 	memset(&store_watch_on[0], 0, 65536*sizeof(void*));
 
@@ -475,12 +479,18 @@ extern "C" void run_python(int argc, char **argv, FILE *out, FILE *in)
 
 
 	Py_SetProgramName(argv[0]);
+
 	Py_Initialize();
+
+	signal(SIGINT, SIG_DFL);
+
 
 	PySys_SetArgv(argc, argv);
 
 
-	const char *pythonScript = strdup(argv[0]);
+
+
+	char *pythonScript = strdup(argv[0]);
 	char *dot = strrchr(pythonScript, '.');
 	if(dot && (dot != pythonScript)) *dot = 0;
 

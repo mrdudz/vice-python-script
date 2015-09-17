@@ -11,7 +11,7 @@ extern int run_python(int argc, char **argv, FILE *out, FILE *in);
 extern int onframe_python(int fc);
 
 int headLess = 0;
-
+int soundLess = 0;
 
 int (*pSDL_OpenAudio)(SDL_AudioSpec *, SDL_AudioSpec *);
 void (*pSDL_CloseAudio)(void);
@@ -148,10 +148,13 @@ int start_scripting(int argc, char **argv)
 	MAP(SDL_PushEvent);
 
 	const char *scriptName = NULL;
-
-	int i=1, j=1;
-	for(;j<argc;) {
-		if(strcmp(argv[j], "-script") == 0) {
+	int i,j;
+	for(i=1, j=1;j<argc;) {
+		if(strcmp(argv[j], "--headless") == 0) {
+			headLess = 1;
+			j++;
+		} else
+		if(strcmp(argv[j], "--script") == 0) {
 			j++;
 			scriptName = argv[j++];
 		} else
@@ -160,10 +163,11 @@ int start_scripting(int argc, char **argv)
 	argc = i;
 
 	for(i=0; i<argc; i++)
-		printf("%s\n", argv[i]);
+		printf("%d:%s\n", i, argv[i]);
 
 	//printf("MAIN\n");
     main_program(argc, argv);
+    while(argv[argc-1] == NULL) argc--;
 
     if(!scriptName)
     	scriptName = "startup.py";
@@ -187,7 +191,7 @@ int start_scripting(int argc, char **argv)
 
 int SDLCALL SDL_OpenAudio(SDL_AudioSpec *desired, SDL_AudioSpec *obtained)
 {
-	if(headLess) {
+	if(soundLess) {
 		if(obtained)
 			memcpy(obtained, desired, sizeof(SDL_AudioSpec));
 		return 0;
@@ -198,13 +202,13 @@ int SDLCALL SDL_OpenAudio(SDL_AudioSpec *desired, SDL_AudioSpec *obtained)
 
 void SDLCALL SDL_CloseAudio(void)
 {
-	if(headLess) return;
+	if(soundLess) return;
 	CALL(SDL_CloseAudio);
 }
 
 void SDLCALL SDL_PauseAudio(int pause_on)
 {
-	if(headLess) return;
+	if(soundLess) return;
 	CALL(SDL_PauseAudio, pause_on);
 }
 
@@ -249,7 +253,7 @@ int SDLCALL SDL_Init(Uint32 flags)
 {
 	printf("INIT %x\n", flags);
 	if(headLess)
-		flags = 0;
+		flags &= ~(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
 	return CALL(SDL_Init, flags);
 }
 
@@ -424,14 +428,18 @@ Uint32 SDLCALL SDL_GetTicks(void)
 
 void SDLCALL SDL_Delay(Uint32 ms)
 {
+	int t = SDL_GetTicks();
 	frameCounter++;
 	onframe_python(frameCounter);
 	if(frameDelay == 0) {
 		ticks += ms;
 		tick_offset = ticks - CALL(SDL_GetTicks);
 	}
-	else
+	else {
+		ms -= (SDL_GetTicks() - t);
 		CALL(SDL_Delay, ms);
+	}
+
 	//mem_store(0x400, 'A');
 }
 
